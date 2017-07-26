@@ -755,14 +755,18 @@ namespace PdfSharp.SharpZipLib.Zip.Compression.Streams
                     {
                         Fill();
                     }
-                    catch (SharpZipBaseException)
-                    { // WB! early EOF: apparantly not a big deal for some PDF pages: break out of the loop.
+                    catch (SharpZipBaseException ex)
+                    {
+                        // Hack 16-05-25: Some PDF files lead to an "Unexpected EOF" exception. Is it safe to ignore this exception?
+                        if (ex.Message != "Unexpected EOF")
+                            throw;
+                        // WB! early EOF: apparently not a big deal for some PDF pages: break out of the loop.
                         break;
                     }
                 }
                 else if (bytesRead == 0)
                 {
-                    throw new ZipException("Dont know what to do");
+                    throw new ZipException("Don't know what to do");
                 }
             }
             return count - remainingBytes;

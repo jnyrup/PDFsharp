@@ -194,6 +194,7 @@ namespace PdfSharp.Pdf.IO
             byte[] bytes = new byte[length];
             int read = _pdfSteam.Read(bytes, 0, length);
             Debug.Assert(read == length);
+            // With corrupted files, read could be different from length.
             if (bytes.Length != read)
             {
                 Array.Resize(ref bytes, read);
@@ -569,12 +570,24 @@ namespace PdfSharp.Pdf.IO
                 if (char.IsLetterOrDigit(_currChar))
                 {
                     hex[0] = char.ToUpper(_currChar);
-                    hex[1] = char.ToUpper(_nextChar);
+                    // Second char is optional in PDF spec.
+                    if (char.IsLetterOrDigit(_nextChar))
+                    {
+                        hex[1] = char.ToUpper(_nextChar);
+                        ScanNextChar(true);
+                    }
+                    else
+                    {
+                        // We could check for ">" here and throw if we find anything else. The throw comes after the next iteration anyway.
+                        hex[1] = '0';
+                    }
+                    ScanNextChar(true);
+
                     int ch = int.Parse(new string(hex), NumberStyles.AllowHexSpecifier);
                     _token.Append(Convert.ToChar(ch));
-                    ScanNextChar(true);
-                    ScanNextChar(true);
                 }
+                else
+                    ParserDiagnostics.HandleUnexpectedCharacter(_currChar);
             }
             string chars = _token.ToString();
             int count = chars.Length;
@@ -633,7 +646,7 @@ namespace PdfSharp.Pdf.IO
 
         bool PeekReference()
         {
-            // A Reference has the form "nnn mmm R". The implementation of the the parser used a
+            // A Reference has the form "nnn mmm R". The implementation of the parser used a
             // reduce/shift algorithm in the first place. But this case is the only one we need to
             // look ahead 3 tokens. 
             int positon = Position;
